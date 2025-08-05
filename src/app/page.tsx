@@ -22,6 +22,7 @@ export default function Home() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!file) return;
     setLoading(true);
     setResponse(null);
     try {
@@ -94,6 +95,7 @@ export default function Home() {
         )}
         <button
           type="submit"
+          disabled={loading || !file}
           disabled={loading || !file}
           style={{
             padding: "12px 0",
