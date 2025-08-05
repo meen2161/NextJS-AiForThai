@@ -82,14 +82,38 @@ export default function Home() {
             fontSize: 16,
             borderRadius: 8,
             border: "none",
-            background: "#0070f3",
+            background: loading ? "#ccc" : "#0070f3",
             color: "#fff",
             cursor: loading ? "not-allowed" : "pointer",
             fontWeight: "bold",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: "8px",
           }}
         >
-          {loading ? "กำลังส่ง..." : "ส่งข้อความ"}
+          {loading && (
+            <div
+              style={{
+                width: "16px",
+                height: "16px",
+                border: "2px solid #fff",
+                borderTop: "2px solid transparent",
+                borderRadius: "50%",
+                animation: "spin 1s linear infinite",
+              }}
+            />
+          )}
+          {loading ? "กำลังประมวลผล..." : "ส่งข้อความ"}
         </button>
+
+        <style jsx>{`
+          @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+          }
+        `}</style>
+
         {response && (
           <div
             style={{
