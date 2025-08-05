@@ -6,21 +6,52 @@ import styles from "./page.module.css";
 import axios from "axios";
 
 export default function Home() {
-  const [text, setText] = useState("");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [response, setResponse] = useState<string | null>(null);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      // ตรวจสอบชนิดไฟล์
+      if (!file.type.startsWith('image/')) {
+        alert('กรุณาเลือกไฟล์ภาพเท่านั้น');
+        return;
+      }
+      setSelectedFile(file);
+      
+      // สร้าง preview URL
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setImagePreview(e.target?.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!selectedFile) return;
+    
     setLoading(true);
     setResponse(null);
     try {
-      console.log("Sending text to API:", text);
-      const res = await axios.post('/api/summarize/', {
-        text: text
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+      
+      const res = await axios.post('/api/superResolution', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data',
+        },
       });
-      console.log(res.data);
-      setResponse(JSON.stringify(res.data, null, 2));
+      
+      // ตรวจสอบ response และดึง URL ของภาพ
+      if (res.data.status === 'success' && res.data.url) {
+        setResponse(res.data.url);
+      } else {
+        setResponse(res.data.error || "เกิดข้อผิดพลาดในการประมวลผล");
+      }
     } catch (err: any) {
       console.error('Error:', err);
       setResponse(err.response?.data?.error || "เกิดข้อผิดพลาดในการเชื่อมต่อ API");
@@ -48,7 +79,7 @@ export default function Home() {
           textAlign: "center",
         }}
       >
-        AI For Thai - Thai Text Summarization
+        AI For Thai - Image Analysis
       </h1>
       <form
         onSubmit={handleSubmit}
@@ -60,23 +91,63 @@ export default function Home() {
           maxWidth: "90vw",
         }}
       >
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={8}
-          placeholder="กรอกข้อความที่นี่..."
+        <div
           style={{
-            width: "100%",
-            padding: 12,
-            fontSize: 16,
+            border: "2px dashed #ccc",
             borderRadius: 8,
-            border: "1px solid #ccc",
-            resize: "vertical",
+            padding: 20,
+            textAlign: "center",
+            background: "#f9f9f9",
           }}
-        />
+        >
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handleFileChange}
+            style={{
+              width: "100%",
+              padding: 8,
+              fontSize: 14,
+              border: "none",
+              background: "transparent",
+            }}
+          />
+          <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "#666" }}>
+            เลือกไฟล์ภาพ (แนะนำขนาด 640 × 480 พิกเซล)
+          </p>
+          {selectedFile && (
+            <p style={{ margin: "8px 0 0 0", fontSize: 12, color: "#333" }}>
+              ไฟล์ที่เลือก: {selectedFile.name}
+            </p>
+          )}
+        </div>
+
+        {imagePreview && (
+          <div
+            style={{
+              textAlign: "center",
+              border: "1px solid #ddd",
+              borderRadius: 8,
+              padding: 16,
+              background: "#fafafa",
+            }}
+          >
+            <img
+              src={imagePreview}
+              alt="Preview"
+              style={{
+                maxWidth: "100%",
+                maxHeight: "300px",
+                borderRadius: 4,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+              }}
+            />
+          </div>
+        )}
+
         <button
           type="submit"
-          disabled={loading || !text.trim()}
+          disabled={loading || !selectedFile}
           style={{
             padding: "12px 0",
             fontSize: 16,
@@ -104,7 +175,7 @@ export default function Home() {
               }}
             />
           )}
-          {loading ? "กำลังประมวลผล..." : "ส่งข้อความ"}
+          {loading ? "กำลังประมวลผล..." : "อัปโหลดภาพ"}
         </button>
 
         <style jsx>{`
@@ -121,12 +192,41 @@ export default function Home() {
               background: "#f5f5f5",
               padding: 12,
               borderRadius: 8,
-              fontSize: 14,
-              color: "#333",
-              wordBreak: "break-all",
+              textAlign: "center",
             }}
           >
-            {response}
+            {response.startsWith('https://') ? (
+              <>
+                <h3 style={{ color: "#000", marginBottom: "8px" }}>ภาพที่ปรับปรุงแล้ว:</h3>
+                <img
+                  src={response}
+                  alt="Enhanced"
+                  style={{
+                    maxWidth: "100%",
+                    maxHeight: "400px",
+                    borderRadius: 4,
+                    boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+                  }}
+                />
+                <br />
+                <a 
+                  href={response} 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  style={{ 
+                    color: "#0070f3", 
+                    textDecoration: "underline",
+                    fontSize: "12px",
+                    marginTop: "8px",
+                    display: "inline-block"
+                  }}
+                >
+                  ดาวน์โหลดภาพ
+                </a>
+              </>
+            ) : (
+              <div style={{ color: "#f00", fontSize: 14 }}>{response}</div>
+            )}
           </div>
         )}
       </form>
