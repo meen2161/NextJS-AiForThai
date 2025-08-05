@@ -96,7 +96,6 @@ export default function Home() {
         <button
           type="submit"
           disabled={loading || !file}
-          disabled={loading || !file}
           style={{
             padding: "12px 0",
             fontSize: 16,
