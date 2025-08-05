@@ -7,79 +7,43 @@ const IMAGE_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp'];
 
 export async function POST(request: NextRequest) {
   try {
-    let base64Image = '';
+    // รับ form data ที่มีไฟล์ภาพ
+    const formData = await request.formData();
+    const file = formData.get('src_img') as File;
+    const json_export = formData.get('json_export') || 'true';
+    // กำหนด img_export เป็น true เสมอ เพื่อให้ได้ human_img
+    const img_export = 'true';
 
-    // เช็ค content-type
-    const contentType = request.headers.get('content-type') || '';
-
-    if (contentType.includes('multipart/form-data')) {
-      // รับไฟล์จาก form-data
-      const formData = await request.formData();
-      const file = formData.get('file') as File;
-      if (!file) {
-        return NextResponse.json({ error: 'ไม่พบไฟล์ภาพ' }, { status: 400 });
-      }
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      base64Image = buffer.toString('base64');
-    } else {
-      // รับชื่อไฟล์จาก JSON
-      const { filename } = await request.json();
-      if (!filename) {
-        return NextResponse.json({ error: 'กรุณาระบุชื่อไฟล์' }, { status: 400 });
-      }
-      let filePath = '';
-      if (path.extname(filename)) {
-        filePath = path.join(process.cwd(), 'public', 'pic', filename);
-        try {
-          await fs.access(filePath);
-        } catch {
-          return NextResponse.json({ error: 'ไม่พบไฟล์ภาพ' }, { status: 404 });
-        }
-      } else {
-        let found = false;
-        for (const ext of IMAGE_EXTENSIONS) {
-          const tryPath = path.join(process.cwd(), 'public', 'pic', filename + ext);
-          try {
-            await fs.access(tryPath);
-            filePath = tryPath;
-            found = true;
-            break;
-          } catch {}
-        }
-        if (!found) {
-          return NextResponse.json({ error: 'ไม่พบไฟล์ภาพ' }, { status: 404 });
-        }
-      }
-      const buffer = await fs.readFile(filePath);
-      base64Image = buffer.toString('base64');
+    if (!file) {
+      return NextResponse.json({ error: 'กรุณาอัปโหลดไฟล์ภาพ' }, { status: 400 });
     }
 
-    // ส่งไป API
+    // เตรียม form data สำหรับส่งไป API
+    const apiForm = new FormData();
+    apiForm.append('src_img', file);
+    apiForm.append('json_export', json_export);
+    apiForm.append('img_export', img_export);
+
     const response = await axios.post(
-      'https://api.aiforthai.in.th/thaifood',
-      { file: base64Image },
+      'https://api.aiforthai.in.th/person/human_detect/',
+      apiForm,
       {
         headers: {
-          'Content-Type': 'application/json',
-          'Apikey': process.env.NEXT_PUBLIC_API_KEY
-        }
+          'Content-Type': 'multipart/form-data',
+          'Apikey': process.env.NEXT_PUBLIC_API_KEY as string,
+        },
       }
     );
 
-    // จัดระเบียบ output และตกแต่งผลลัพธ์
-    let result = null;
-    if (response.data?.objects?.length > 0) {
-      const { label, rank, result: res, score } = response.data.objects[0];
-      result = {
-        label: `อาหารที่คาดว่าเป็น: ${label}`,
-        rank: `อันดับ: ${rank}`,
-        result: `ชื่ออาหาร: ${res}`,
-        score: `ความมั่นใจ: ${(parseFloat(score) * 100).toFixed(2)}%`
-      };
+    // ตรวจสอบว่ามี human_img ใน response หรือไม่
+    if (!response.data.human_img) {
+      return NextResponse.json(
+        { status: 500 }
+      );
     }
 
-    return NextResponse.json(result);
+    // ส่งกลับ human_img เป็น JSON
+    return NextResponse.json({ human_img: response.data.human_img });
   } catch (error: any) {
     console.error('API Error:', error.response?.data || error.message);
     return NextResponse.json(
