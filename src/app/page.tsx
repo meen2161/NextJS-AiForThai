@@ -1,29 +1,46 @@
 "use client"
 
-import Image from "next/image";
 import { useState } from "react";
-import styles from "./page.module.css";
 import axios from "axios";
 
 export default function Home() {
-  const [text, setText] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [fileUrl, setFileUrl] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<string | null>(null);
+  const [response, setResponse] = useState<any>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const selectedFile = e.target.files?.[0] || null;
+    setFile(selectedFile);
+    setResponse(null);
+    if (selectedFile) {
+      setFileUrl(URL.createObjectURL(selectedFile));
+    } else {
+      setFileUrl(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setResponse(null);
     try {
-      console.log("Sending text to API:", text);
-      const res = await axios.post('/api/summarize/', {
-        text: text
+      if (!file) {
+        setResponse({ error: "กรุณาเลือกไฟล์ภาพ" });
+        setLoading(false);
+        return;
+      }
+      const formData = new FormData();
+      formData.append("src_img", file);
+      formData.append("json_export", "true");
+      formData.append("img_export", "true");
+
+      const res = await axios.post("/api/summarize/", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
       });
-      console.log(res.data);
-      setResponse(JSON.stringify(res.data, null, 2));
+      setResponse(res.data);
     } catch (err: any) {
-      console.error('Error:', err);
-      setResponse(err.response?.data?.error || "เกิดข้อผิดพลาดในการเชื่อมต่อ API");
+      setResponse({ error: err.response?.data?.error || "เกิดข้อผิดพลาดในการเชื่อมต่อ API" });
     }
     setLoading(false);
   };
@@ -48,7 +65,7 @@ export default function Home() {
           textAlign: "center",
         }}
       >
-        AI For Thai - Thai Text Summarization
+        AI For Thai - Human Detection
       </h1>
       <form
         onSubmit={handleSubmit}
@@ -60,23 +77,24 @@ export default function Home() {
           maxWidth: "90vw",
         }}
       >
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={8}
-          placeholder="กรอกข้อความที่นี่..."
-          style={{
-            width: "100%",
-            padding: 12,
-            fontSize: 16,
-            borderRadius: 8,
-            border: "1px solid #ccc",
-            resize: "vertical",
-          }}
+        <input
+          type="file"
+          accept="image/jpeg,image/jpg"
+          onChange={handleFileChange}
         />
+        {fileUrl && (
+          <div style={{ margin: "8px 0", textAlign: "center" }}>
+            <div style={{ fontSize: 14, marginBottom: 4 }}>ภาพที่อัปโหลด</div>
+            <img
+              src={fileUrl}
+              alt="uploaded"
+              style={{ maxWidth: "100%", maxHeight: 300, borderRadius: 8, border: "1px solid #eee" }}
+            />
+          </div>
+        )}
         <button
           type="submit"
-          disabled={loading || !text.trim()}
+          disabled={loading || !file}
           style={{
             padding: "12px 0",
             fontSize: 16,
@@ -104,7 +122,7 @@ export default function Home() {
               }}
             />
           )}
-          {loading ? "กำลังประมวลผล..." : "ส่งข้อความ"}
+          {loading ? "กำลังประมวลผล..." : "อัปโหลดรูปภาพ"}
         </button>
 
         <style jsx>{`
@@ -115,18 +133,20 @@ export default function Home() {
         `}</style>
 
         {response && (
-          <div
-            style={{
-              marginTop: 8,
-              background: "#f5f5f5",
-              padding: 12,
-              borderRadius: 8,
-              fontSize: 14,
-              color: "#333",
-              wordBreak: "break-all",
-            }}
-          >
-            {response}
+          <div style={{ marginTop: 16, width: "100%" }}>
+            {response.error && (
+              <div style={{ color: "red", marginBottom: 8 }}>{response.error}</div>
+            )}
+            {response?.human_img && (
+              <div style={{ textAlign: "center", marginTop: 24 }}>
+                <div style={{ fontSize: 16, marginBottom: 8, fontWeight: "bold" }}>ผลลัพธ์ที่ตรวจจับบุคคล</div>
+                <img
+                  src={response.human_img}
+                  alt="human detected"
+                  style={{ maxWidth: "100%", maxHeight: 400, borderRadius: 8, border: "1px solid #eee" }}
+                />
+              </div>
+            )}
           </div>
         )}
       </form>
