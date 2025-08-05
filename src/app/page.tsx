@@ -1,31 +1,58 @@
-"use client"
+"use client";
 
-import Image from "next/image";
 import { useState } from "react";
-import styles from "./page.module.css";
-import axios from "axios";
 
 export default function Home() {
-  const [text, setText] = useState("");
+  const [file, setFile] = useState<File | null>(null);
+  const [result, setResult] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const [response, setResponse] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      setFile(e.target.files[0]);
+      setResult(null);
+      setError(null);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setResponse(null);
-    try {
-      console.log("Sending text to API:", text);
-      const res = await axios.post('/api/summarize/', {
-        text: text
-      });
-      console.log(res.data);
-      setResponse(JSON.stringify(res.data, null, 2));
-    } catch (err: any) {
-      console.error('Error:', err);
-      setResponse(err.response?.data?.error || "เกิดข้อผิดพลาดในการเชื่อมต่อ API");
+
+    if (!file) {
+      setError("กรุณาเลือกไฟล์ภาพก่อน");
+      return;
     }
-    setLoading(false);
+
+    if (file.size > 2 * 1024 * 1024) {
+      setError("ไฟล์ต้องไม่เกิน 2 MB");
+      return;
+    }
+
+    setLoading(true);
+    setError(null);
+    setResult(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const res = await fetch("/api/chestxray", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP error! status: ${res.status}`);
+      }
+
+      const data = await res.json();
+      setResult(data);
+    } catch (err: any) {
+      setError("เกิดข้อผิดพลาด: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -48,8 +75,9 @@ export default function Home() {
           textAlign: "center",
         }}
       >
-        AI For Thai - Thai Text Summarization
+        วิเคราะห์ภาพเอ็กซ์เรย์ทรวงอก
       </h1>
+
       <form
         onSubmit={handleSubmit}
         style={{
@@ -60,23 +88,20 @@ export default function Home() {
           maxWidth: "90vw",
         }}
       >
-        <textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          rows={8}
-          placeholder="กรอกข้อความที่นี่..."
+        <input
+          type="file"
+          accept=".jpg,.jpeg,.png"
+          onChange={handleFileChange}
           style={{
-            width: "100%",
             padding: 12,
-            fontSize: 16,
             borderRadius: 8,
             border: "1px solid #ccc",
-            resize: "vertical",
+            cursor: "pointer",
           }}
         />
         <button
           type="submit"
-          disabled={loading || !text.trim()}
+          disabled={loading || !file}
           style={{
             padding: "12px 0",
             fontSize: 16,
@@ -84,28 +109,56 @@ export default function Home() {
             border: "none",
             background: "#0070f3",
             color: "#fff",
-            cursor: loading ? "not-allowed" : "pointer",
+            cursor: loading || !file ? "not-allowed" : "pointer",
             fontWeight: "bold",
           }}
         >
-          {loading ? "กำลังส่ง..." : "ส่งข้อความ"}
+          {loading ? "กำลังวิเคราะห์..." : "วิเคราะห์"}
         </button>
-        {response && (
-          <div
-            style={{
-              marginTop: 8,
-              background: "#f5f5f5",
-              padding: 12,
-              borderRadius: 8,
-              fontSize: 14,
-              color: "#333",
-              wordBreak: "break-all",
-            }}
-          >
-            {response}
-          </div>
-        )}
       </form>
+
+      {error && (
+        <p
+          style={{
+            marginTop: 8,
+            color: "red",
+            fontWeight: "bold",
+            maxWidth: 400,
+            textAlign: "center",
+          }}
+        >
+          {error}
+        </p>
+      )}
+
+      {result && (
+        <div
+          style={{
+            marginTop: 20,
+            background: "#f5f5f5",
+            padding: 12,
+            borderRadius: 8,
+            fontSize: 14,
+            color: "#333",
+            wordBreak: "break-word",
+            maxWidth: 400,
+            textAlign: "center",
+          }}
+        >
+          {result.OK && result.objects?.length > 0 ? (
+            <>
+              <p>
+                <strong>สถานะ:</strong> {result.objects[0].result}
+              </p>
+              <p>
+                <strong>ความน่าเชื่อถือ:</strong> {result.objects[0].score}
+              </p>
+            </>
+          ) : (
+            <p>ไม่สามารถวิเคราะห์ได้</p>
+          )}
+        </div>
+      )}
     </div>
   );
 }
