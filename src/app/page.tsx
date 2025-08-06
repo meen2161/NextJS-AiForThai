@@ -20,7 +20,7 @@ export default function Home() {
         return;
       }
       setSelectedFile(file);
-      
+
       // สร้าง preview URL
       const reader = new FileReader();
       reader.onload = (e) => {
@@ -33,19 +33,19 @@ export default function Home() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedFile) return;
-    
+
     setLoading(true);
     setResponse(null);
     try {
       const formData = new FormData();
       formData.append('file', selectedFile);
-      
+
       const res = await axios.post('/api/superResolution', formData, {
         headers: {
           'Content-Type': 'multipart/form-data',
         },
       });
-      
+
       // ตรวจสอบ response และดึง URL ของภาพ
       if (res.data.status === 'success' && res.data.url) {
         setResponse(res.data.url);
@@ -79,7 +79,7 @@ export default function Home() {
           textAlign: "center",
         }}
       >
-        AI For Thai - Image Analysis
+        AI For Thai - Super Resolution
       </h1>
       <form
         onSubmit={handleSubmit}
@@ -209,12 +209,12 @@ export default function Home() {
                   }}
                 />
                 <br />
-                <a 
-                  href={response} 
-                  target="_blank" 
+                <a
+                  href={response}
+                  target="_blank"
                   rel="noopener noreferrer"
-                  style={{ 
-                    color: "#0070f3", 
+                  style={{
+                    color: "#0070f3",
                     textDecoration: "underline",
                     fontSize: "12px",
                     marginTop: "8px",
